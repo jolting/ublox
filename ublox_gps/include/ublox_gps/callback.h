@@ -202,7 +202,7 @@ class CallbackHandlers {
    * @param data the buffer of u-blox messages to process
    * @param size the size of the buffer
    */
-  void readCallback(unsigned char* data, std::size_t& size) {
+  void readCallback(unsigned char* data, std::size_t size) {
     ublox::Reader reader(data, size);
     // Read all U-Blox messages in buffer
     while (reader.search() != reader.end() && reader.found()) {
@@ -218,10 +218,6 @@ class CallbackHandlers {
 
       handle(reader);
     }
-
-    // delete read bytes from ASIO input buffer
-    std::copy(reader.pos(), reader.end(), data);
-    size -= reader.pos() - data;
   }
 
  private:

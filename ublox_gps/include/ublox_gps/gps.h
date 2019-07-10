@@ -355,7 +355,6 @@ class Gps {
 
   bool isInitialized() const { return worker_ != 0; }
   bool isConfigured() const { return isInitialized() && configured_; }
-  bool isOpen() const { return worker_->isOpen(); }
 
   /**
    * Poll a u-blox message of the given type.
@@ -388,22 +387,6 @@ class Gps {
    */
   template <typename ConfigT>
   bool configure(const ConfigT& message, bool wait = true);
-
-  /**
-   * @brief Wait for an acknowledge message until the timeout
-   * @param timeout maximum time to wait in seconds
-   * @param class_id the expected class ID of the ACK
-   * @param msg_id the expected message ID of the ACK
-   * @return true if expected ACK received, false otherwise
-   */
-  bool waitForAcknowledge(const boost::posix_time::time_duration& timeout,
-                          uint8_t class_id, uint8_t msg_id);
-
-  /**
-   * @brief Set the callback function which handles raw data.
-   * @param callback the write callback which handles raw data
-   */
-  void setRawDataCallback(const Worker::Callback& callback);
 
  private:
   //! Types for ACK/NACK messages, WAIT is used when waiting for an ACK
@@ -537,9 +520,8 @@ bool Gps::configure(const ConfigT& message, bool wait) {
   if (!wait) return true;
 
   // Wait for an acknowledgment and return whether or not it was received
-  return waitForAcknowledge(default_timeout_,
-                            message.CLASS_ID,
-                            message.MESSAGE_ID);
+  ConfigT dummy;
+  return read(dummy);
 }
 
 }  // namespace ublox_gps

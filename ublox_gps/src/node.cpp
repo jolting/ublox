@@ -528,13 +528,14 @@ void UbloxNode::initializeIo() {
   } else {
     gps.initializeSerial(device_, baudrate_, uart_in_, uart_out_);
   }
-
+/* ToDo use RAII to initialize this
   // raw data stream logging
   if (rawDataStreamPa_.isEnabled()) {
     gps.setRawDataCallback(
       boost::bind(&RawDataStreamPa::ubloxCallback,&rawDataStreamPa_, _1, _2));
     rawDataStreamPa_.initialize();
   }
+*/
 }
 
 void UbloxNode::initialize() {

@@ -47,8 +47,6 @@ Gps::~Gps() { close(); }
 void Gps::setWorker(const boost::shared_ptr<Worker>& worker) {
   if (worker_) return;
   worker_ = worker;
-  worker_->setCallback(boost::bind(&CallbackHandlers::readCallback,
-                                   &callbacks_, _1, _2));
   configured_ = static_cast<bool>(worker);
 }
 
@@ -134,9 +132,9 @@ void Gps::initializeSerial(std::string port, unsigned int baudrate,
 
   // Set the I/O worker
   if (worker_) return;
-  setWorker(boost::shared_ptr<Worker>(
-      new AsyncWorker<boost::asio::serial_port>(serial, io_service)));
-
+  setWorker(boost::make_shared<AsyncWorker<boost::asio::serial_port>>(
+			  serial, io_service,
+			  boost::bind(&CallbackHandlers::readCallback, &callbacks_, _1, _2)));
   configured_ = false;
 
   // Set the baudrate
@@ -184,8 +182,9 @@ void Gps::resetSerial(std::string port) {
 
   // Set the I/O worker
   if (worker_) return;
-  setWorker(boost::shared_ptr<Worker>(
-      new AsyncWorker<boost::asio::serial_port>(serial, io_service)));
+  setWorker(boost::make_shared<AsyncWorker<boost::asio::serial_port>>(serial, io_service,
+	      boost::bind(&CallbackHandlers::readCallback,
+		 &callbacks_, _1, _2)));
   configured_ = false;
 
   // Poll UART PRT Config
@@ -238,9 +237,11 @@ void Gps::initializeTcp(std::string host, std::string port) {
            endpoint->service_name().c_str());
 
   if (worker_) return;
-  setWorker(boost::shared_ptr<Worker>(
-      new AsyncWorker<boost::asio::ip::tcp::socket>(socket,
-                                                    io_service)));
+  setWorker(boost::make_shared<AsyncWorker<boost::asio::ip::tcp::socket>> (
+			  socket,
+		          io_service,
+			  boost::bind(&CallbackHandlers::readCallback,
+                                   &callbacks_, _1, _2)));
 }
 
 void Gps::close() {
@@ -535,32 +536,6 @@ bool Gps::poll(uint8_t class_id, uint8_t message_id,
   worker_->send(out.data(), writer.end() - out.data());
 
   return true;
-}
-
-bool Gps::waitForAcknowledge(const boost::posix_time::time_duration& timeout,
-                             uint8_t class_id, uint8_t msg_id) {
-  ROS_DEBUG_COND(debug >= 2, "Waiting for ACK 0x%02x / 0x%02x",
-                 class_id, msg_id);
-  boost::posix_time::ptime wait_until(
-      boost::posix_time::second_clock::local_time() + timeout);
-
-  Ack ack = ack_.load(boost::memory_order_seq_cst);
-  while (boost::posix_time::second_clock::local_time() < wait_until
-         && (ack.class_id != class_id
-             || ack.msg_id != msg_id
-             || ack.type == WAIT)) {
-    worker_->wait(timeout);
-    ack = ack_.load(boost::memory_order_seq_cst);
-  }
-  bool result = ack.type == ACK
-                && ack.class_id == class_id
-                && ack.msg_id == msg_id;
-  return result;
-}
-
-void Gps::setRawDataCallback(const Worker::Callback& callback) {
-  if (! worker_) return;
-  worker_->setRawDataCallback(callback);
 }
 
 bool Gps::setUTCtime() {
